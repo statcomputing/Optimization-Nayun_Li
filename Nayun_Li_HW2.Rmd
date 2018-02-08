@@ -1,0 +1,348 @@
+---
+title: "Nayun Li HW2 MLE problem"
+author: "Nayun Li"
+date: "2018/2/5"
+output:
+  pdf_document: default
+  html_document: default
+  documentclass: article
+fontsize: 5pt
+abstract: |
+  This is the Homework 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Question 1 
+
+## (a) Show the fomula as follows
+
+The Cauchy (x,theta) has probability density:
+$$P(x;\theta)=\cfrac{1}{\pi[1+(x-\theta)^2]}$$
+Let $x_{1},x_{2}...x_{n}$be an i.i.d smple, and $l(\theta)$ the log-likelihood function is:
+$$ l( \theta)= \ln L( \theta) = \ln(  \prod_{i=1}^np(x_{i}; \theta)) \\ = \ln( \prod_{i=1}^n \cfrac{1}{ \pi[1+(x_{i}- \theta)^2]}) \\= \sum_{i=1}^n \ln ( \cfrac{1}{ \pi[1+(x_{i}- \theta)^2]}) \\= \sum_{i=1}^n( \ln ( \cfrac{1}{ \pi}))+ \sum_{i=1}^n \ln( \cfrac{1}{1+(x_{i}- \theta)^2}) \\= -n \ln \pi- \sum_{i=1}^n \ln (1+( \theta-x_i)^2) $$
+$$ l^{'}( \theta)= 0-( \sum_{i=1}^n \ln (1+(x_i- \theta)^2))^{'} \\= - \sum_{i=1}^n \cfrac{1}{1+(x_i- \theta)^2}*(1+x^2_i-2x_i \theta+ \theta^2)^{'} \\= - \sum_{i=1}^n \cfrac{2( \theta-x_i)}{1+( \theta-x_i)^2} \\= -2 \sum_{i=1}^n \cfrac{ \theta-x_i}{1+( \theta-x_i)^2} $$
+$$ l^{''}( \theta)= -2 \sum_{i=1}^n \cfrac{1+( \theta-x_i)^2-2( \theta-x_i)^2}{[1+( \theta-x_i)^2]^2} \\= -2 \sum_{i=1}^n \cfrac{1-(  \theta-x_{i})^2}{[1+( \theta-x_{i})^2]^2} $$
+$$ P(x)= \cfrac{1}{ \pi(1+x^2)} $$
+We have:
+$$ P^{'}(x)= - \cfrac{2x}{ \pi(1+x^2)^2} $$
+the fisher scoring function is equal to:
+
+$$ I( \theta)= n \int_{- \infty}^ \infty \cfrac{{p^{'}(x)}^2}{p(x)}dx \\
+= \int_{- \infty}^ \infty( \cfrac{4x^2}{ \pi^2(1+x^2)^4})* \cfrac{ \pi(1+x^2)}{1}dx \\ = \cfrac{4n}{ \pi} \int_{- \infty}^ \infty \cfrac{x^2}{(1+x^2)^3}dx $$
+Set $x= \tan( \alpha); \alpha \in(- \cfrac{ \pi}{2}, \cfrac{ \pi}{2})$
+So,
+$$I( \theta)= \cfrac{4n}{ \pi} \int_{- \cfrac{ \pi}{2}}^{ \cfrac{ \pi}{2}} \cfrac{ \cos^{-2}( \alpha)-1}{(cos^{-2}( \alpha))^3} \\= \cfrac{4n}{ \pi} \int_{- \cfrac{ \pi}{2}}^{ \cfrac{ \pi}{2}} \cfrac{ \tan^2 (\alpha)}{(1+tan^2 ( \alpha))^3} \cfrac{1}{\cos^2 ( \alpha)}d \alpha \\= \cfrac{4n}{ \pi} \int_{- \cfrac{ \pi}{2}}^{ \cfrac{  \pi}{2}}sin^2( \alpha)*cos^2( \alpha)d \alpha \\= \cfrac{4n}{ \pi}* \cfrac{ \pi}{8}= \cfrac{n}{2} $$
+
+## (b) Graph the log-likelihood function. Find the MLE for $\theta$ using the Newton-Raphsonmethod.
+
+# Graph the log-likelihood function.
+
+```{r}
+log_like <- function(theta, x) 
+  sum(-log(pi) - log(1 + (x - theta) ^ 2))
+x <- c(1.77, -0.23, 2.76, 3.80, 3.47, 56.75, -1.34, 4.24, -2.44,
+       3.29, 3.71, -2.40, 4.53, -0.07, -1.05, -13.87, -2.53, -1.75)
+theta <- seq(from = -100, to = 100, , length.out = 100)
+plot(theta, sapply(theta, log_like, x), type = "l", ylab = "LogL
+     of Cauchy", xlim = c(-100, 100))
+```
+
+# Find the MLE for $\theta$ using the Newton-Raphson method
+
+```{r}
+# b
+inits <- c(-11, -1, 0, 1.5, 4, 4.7, 7, 8, 38)
+newton <- function(inits){
+  g <- function(theta){
+    sum(log(pi) + log(1 + (theta - x) ^ 2))
+  }
+  gr_g <- function(theta){
+    (sum(2 * (theta - x) / (1 + (theta - x) ^ 2)))
+  }
+  hess_g <- function(theta){
+    y <- sum(2 * (theta - x) / (1 + (theta - x) ^ 2)) / 
+             (sum(2 * (1 - (theta - x) ^ 2) / ((1 + (theta - x) ^ 2) ^ 2)))
+    return(matrix(y, nrow = 1))
+  }
+  z <- nlminb(inits, g, gr_g, hess_g)
+}
+#print results
+results_1b <- matrix(0, nrow = 1, ncol = 9, byrow = FALSE, dimnames = list('newton', 
+                     c('-11', '-1', '0', '1.5', '4', '4.7', '7', '8', '38')))
+for (i in (1 : length(inits))){
+  results_1b[1, i] <- as.numeric(newton(-11)[1])
+}
+knitr::kable(head(results_1b), booktabs = TRUE, longtable = T,
+             caption = '(results_1b)') 
+```
+
+## (c) Apply fixed-point iterations
+
+```{r}
+alphas <- c(1, 0.64, 0.25)
+inits <- c(-11, -1, 0, 1.5, 4, 4.7, 7, 8, 38)
+gr_g <- function(theta){
+  -2 * (sum((theta - x) / (1 + (theta - x) ^ 2)))
+}
+fix_point <- function(init, alpha, eps = 1e-06, itmax = 100){
+  count <- 0
+  flag <- TRUE
+  theta <- init
+  while(flag){
+    g <- gr_g(theta)
+    count <- count + 1
+    if(abs(g) < eps | count == itmax){
+      flag <- FALSE
+      return(theta)
+    }
+    else{
+      theta <- alpha * (gr_g(theta)) + theta
+    }
+  }
+}
+results_1c <- matrix(0, nrow = 3, ncol = 9, byrow = F, 
+                     dimnames = list(c('1', '0.64', '0.25'), 
+                  c('-11', '-1', '0', '1.5', '4', '4.7', '7', '8', '38')))
+for (i in (1 : length(alphas))){
+  for (j in (1 : length(inits))){
+    results_1c[i, j] <- as.numeric(fix_point(inits[j], alphas[i], 
+                          eps = 1e-06, itmax = 100))
+  }
+}
+knitr::kable(head(results_1c), booktabs = TRUE,
+             caption = '(results_1c)') 
+```
+
+## (d) First use Fisher scoring to find the MLE for $\theta$, then refine the estimate by running Newton-Raphson method
+
+```{r}
+n <- length(inits)
+newton_fc <- function(inits){
+  g <- function(theta){
+    sum(log(pi) + log(1 + (theta - x) ^ 2))
+  }
+  gr_g <- function(theta){
+    (sum(2 * (theta - x) / (1 + (theta - x) ^ 2)))
+  }
+  hess_g <- function(theta){
+    y <- sum(2 * (theta - x) / (1 + (theta - x) ^ 2)) / 
+      (n / 2)
+    return(matrix(y, nrow = 1))
+  }
+  z <- nlminb(inits, g, gr_g, hess_g)
+}
+#print results
+results_1d <- matrix(0, nrow = 2, ncol = 9, byrow = FALSE, 
+                     dimnames = list(c('fish', 'refine'), 
+    c('-11', '-1', '0', '1.5', '4', '4.7', '7', '8', '38')))
+for (i in (1 : length(inits))){
+  results_1d[1, i] <- as.numeric(newton_fc(inits[i])[1])
+}
+
+fc_refine <- array()
+for (i in (1:length(inits))){
+  fc_refine[i] <- newton(results_1d[i])[1]
+  results_1d[2, i] <- as.numeric(fc_refine[i])
+}
+knitr::kable(head(results_1d), booktabs = TRUE,
+             caption = '(results_1d)') 
+
+
+```
+
+## (e) Comment on the results from different methods 
+
+```{r}
+final_results <- rbind(results_1b, results_1c, results_1d)
+knitr::kable(head(final_results), booktabs = TRUE,
+             caption = '(final_results)') 
+```
+
+According to the results above, the speed of convergence of Newton method is the fastest mothods. The speed of Fisher scoring method is slow. However, the stability of newton method is not very good. In fixed-point iterations, it depends strongly on the value of alpha. Smaller alpha is better.
+
+### Question 2
+
+## (a) Graph the function
+
+```{r}
+log_like <- function(theta, x) 
+  sum(log((1 - cos(x - theta)) / (2 * pi)))
+x <- c(3.91, 4.85, 2.28, 4.06, 3.70, 4.04, 5.46, 3.53, 2.28, 1.96,
+             2.53, 3.88, 2.22, 3.47, 4.82, 2.46, 2.99, 2.54, 0.52)
+theta <- seq(from = -pi, to = pi, , length.out = 1000)
+plot(theta, sapply(theta, log_like, x), type = "l", ylab = "LogLike_function")
+```
+
+## (b) Find the method-of-moments estimator of $\theta$
+
+```{r}
+moment <- function(theta, y)
+  pi + sin(theta) - y
+
+root1 <- uniroot(moment, c(0, pi / 2), y = mean(x)) $ root
+root2 <- uniroot(moment, c(pi / 2, pi), y = mean(x)) $ root
+print(root1)
+print(root2)
+```
+
+## (c) Find the MLE for ?? using the Newton-Raphson method
+
+```{r}
+newton_theta_moment <- function(inti){
+  g <- function(theta){
+    n <- length(x)
+    n * log(2 * pi) - sum(log(1 - cos(x - theta)))  
+  }
+  gr_g <- function(theta){
+    
+    sum((sin(x - theta)) / (1 - cos(x - theta)))
+  }
+  hess_g <- function(theta){
+    y <- -sum(1 / (cos(x - theta) - 1))
+    return(matrix(y, nrow = 1))
+  }
+  z <- nlminb(inti, g, gr_g, hess_g)
+}
+#print results
+results_2c <- matrix(0, nrow = 1, ncol = 2, byrow = FALSE, dimnames = list('theta', 
+                     c('root_1', 'root_2')))
+for (i in (1 : length(inits <- c(root1, root2)))){
+  results_2c[1, i] <-  as.numeric(newton_theta_moment(inits[i])[1])
+}
+knitr::kable(head(results_2c), booktabs = TRUE, longtable = T,
+             caption = '(results_2c)') 
+```
+
+## (d) start at $\theta_0$ = ???2.7 and $\theta_0$ = 2.7
+
+```{r}
+newton <- function(inti){
+  g <- function(theta){
+    n <- length(x)
+    n * log(2 * pi) - sum(log(1 - cos(x - theta)))  
+  }
+  gr_g <- function(theta){
+    
+    sum((sin(x - theta)) / (1 - cos(x - theta)))
+  }
+  hess_g <- function(theta){
+    y <- -sum(1 / (cos(x - theta) - 1))
+    return(matrix(y, nrow = 1))
+  }
+  z <- nlminb(inti, g, gr_g, hess_g)
+}
+#print results
+#print results
+results_2d <- matrix(0, nrow = 1, ncol = 2, byrow = FALSE, dimnames = list('theta', 
+                     c('-2.7', '2.7')))
+for (i in (1 : length(inits <- c(-2.7, 2.7)))){
+  results_2d[1, i] <-  as.numeric(newton_theta_moment(inits[i])[1])
+}
+knitr::kable(head(results_2d), booktabs = TRUE, longtable = T,
+             caption = '(results_2d)') 
+```
+
+## (e) Repeat the above using 200 equally spaced starting values between $-\pi$ and $\pi$. 
+
+```{r, warning = FALSE}
+init_value <- seq(-pi,pi,length.out = 200)
+rep_results <- array()
+for (i in 1:length(init_value)){
+  rep_results[i] <- newton(init_value[i])
+}
+
+plot(init_value, rep_results, main='MLE Results',
+     ylab='MLE', xlab='initial value')
+
+order_list <- matrix(c(1:200), ncol = 1)
+rep_results <- matrix(rep_results, ncol = 1, byrow = TRUE)
+results <- cbind(order_list, init_value, rep_results)
+colnames(results) <- c('order_list','Starting Value','MLE')
+results_1 <- subset(results, rep_results <= -3.1124 )
+```
+
+### Question 3
+
+## (a) Fit the population growth model to the beetles data using the Gauss-Newton approach, to minimize the sum of squared errors between model predictions and observed counts.
+
+```{r}
+library(car)
+library(ggplot2)
+
+beetles <- data.frame(
+  days    = c(0,  8,  28,  41,  63,  69,   97, 117,  135,  154),
+  beetles = c(2, 47, 192, 256, 768, 896, 1120, 896, 1184, 1024))
+
+plot(beetles)
+
+## Since K is the parameter that represents the population carrying capacity,and the number of beetles decreased from 1120 to 896 at 117days and from 1184 to 1024 at 154days, we could assume the start value of K is 1200.
+K <- 1200
+r <- 0.15
+beetles_mod <- nls(beetles ~ K * 2 / (2 + (K - 2) * exp((-r) * days)),
+           start = list(K = 1200, r = 0.15),
+           data = beetles)
+summary(beetles_mod)
+
+#plot the results
+p <- ggplot(beetles, aes(days, beetles))
+p + geom_point(size = 3) + geom_line(aes(days, fitted(beetles_mod)), col='red')
+
+```
+
+## (b)Show the contour plot of the sum of squared errors.
+
+```{r}
+
+days    = c(0,  8,  28,  41,  63,  69,   97, 117,  135,  154)
+beetles = c(2, 47, 192, 256, 768, 896, 1120, 896, 1184, 1024)
+
+error <- function(K, r){
+  sum((beetles - 2 * K / (2 + (K - 2) * exp(-r * days))) ^ 2)
+}
+
+results_3b <- matrix(0, 100, 100, byrow=TRUE)
+for (i in (1 : 100)){
+  for (j in (1 : 100)){
+    K <- 12 * i
+    r <- 0.005 * j
+    results_3b[i,j] <- error(K, r)
+  }
+}
+
+contour(results_3b, xlab = 'K', ylab = 'r', 
+               plot.title = title ( main = "Contour plot of SSE",
+                                    xlab = "K", ylab = "r"))
+```
+
+## (c) Estimate the variance your parameter estimates.
+
+```{r, warning = FALSE}
+beetles <- data.frame(
+  days    = c(0,  8,  28,  41,  63,  69,   97, 117,  135,  154),
+  beetles = c(2, 47, 192, 256, 768, 896, 1120, 896, 1184, 1024))
+log_function <- function(estimate_values, beetles, days) {
+  K <- estimate_values[1]
+  r <- estimate_values[2]
+  sigma <- estimate_values[3]
+  value <- log((K * 2) / (2 + (K - 2) * exp(-r * days)))
+            - sum(dnorm(log(beetles), value, sigma, log = TRUE))
+}
+estimate_values <- c(1200, 0.17,2.03)
+sigma_value <- sqrt(var(log(beetles$beetles)))
+mod <- nlm(log_function, estimate_values, 
+            beetles = beetles$beetles,
+            days = beetles$days, 
+            hessian = TRUE)
+
+print(mod)
+estimates <- mod$estimate
+print(estimates)
+hh <- mod$hessian
+print(hh)
+var_matrix <- solve(hh)
+diag(var_matrix)
+```
+
